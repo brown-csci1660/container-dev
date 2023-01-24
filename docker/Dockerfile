@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ubuntu:jammy
 
 # set environment variables for tzdata
 ARG TZ=America/New_York
@@ -23,14 +23,14 @@ RUN apt-get update && apt-get -y install\
  libblas-dev\
  liblapack-dev\
  liblapack-doc\
- libstdc++-10-doc\
+ libstdc++-11-doc\
  make\
  make-doc
 
 # install clang-related packages
 RUN apt-get -y install\
  clang\
- clang-10-doc\
+ clang-11-doc\
  lldb\
  clang-format
 
@@ -73,7 +73,7 @@ RUN RUSTUP_HOME=/opt/rust CARGO_HOME=/opt/rust \
  bash -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sudo -E sh -s -- -y"
 
 # Install golang
-RUN bash -c "mkdir /usr/local/go && wget -O - https://go.dev/dl/go1.19.1.linux-amd64.tar.gz | sudo tar -xvz -C /usr/local"
+RUN bash -c "mkdir /usr/local/go && wget -O - https://go.dev/dl/go1.19.5.linux-amd64.tar.gz | sudo tar -xvz -C /usr/local"
 
 # set up libraries
 RUN apt-get -y install\
@@ -107,23 +107,23 @@ COPY ./xpra.conf /etc/xpra/xpra.conf
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 
-# set up passwordless sudo for user cs1680-user
-RUN useradd -m -s /bin/bash cs1680-user && \
-  echo "cs1680-user ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/cs1680-init
+# set up passwordless sudo for user cs1660-user
+RUN useradd -m -s /bin/bash cs1660-user && \
+  echo "cs1660-user ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/cs1660-init
 
 # Add user to the wireshark group
-RUN usermod -a -G wireshark cs1680-user
+RUN usermod -a -G wireshark cs1660-user
 
 # create binary reporting version of dockerfile
-RUN (echo '#\!/bin/sh'; echo 'echo 1') > /usr/bin/cs1680-docker-version; chmod ugo+rx,u+w,go-w /usr/bin/cs1680-docker-version
+RUN (echo '#\!/bin/sh'; echo 'echo 1') > /usr/bin/cs1660-docker-version; chmod ugo+rx,u+w,go-w /usr/bin/cs1660-docker-version
 
 # git build arguments
-ARG USER=cs1680\ User
+ARG USER=cs1660\ User
 ARG EMAIL=nobody@example.com
 
 # configure your environment
-USER cs1680-user
+USER cs1660-user
 RUN rm -f ~/.bash_logout
 
-WORKDIR /home/cs1680
+WORKDIR /home/cs1660
 CMD ["/bin/bash", "-l"]
