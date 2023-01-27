@@ -1,4 +1,5 @@
-FROM ubuntu:focal
+### FROM ubuntu:focal
+FROM ubuntu:jammy
 
 # set environment variables for tzdata
 ARG TZ=America/New_York
@@ -13,7 +14,8 @@ RUN apt-get update &&\
 COPY --chown=root:root sources.list /etc/apt/sources.list
 
 # include multiarch support
-RUN apt-get -y install binfmt-support &&\
+RUN apt-get update &&\
+  apt-get -y install binfmt-support &&\
   dpkg --add-architecture amd64 &&\
   apt-get update &&\
   apt-get upgrade
@@ -38,7 +40,8 @@ RUN apt-get update && apt-get -y install\
 # install clang-related packages
 RUN apt-get -y install\
  clang\
- clang-10-doc\
+### clang-10-doc\
+ clang-11-doc\
  lldb\
  clang-format
 
@@ -138,23 +141,23 @@ COPY ./xpra.conf /etc/xpra/xpra.conf
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 
-# set up passwordless sudo for user cs1680-user
-RUN useradd -m -s /bin/bash cs1680-user && \
-  echo "cs1680-user ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/cs1680-init
+# set up passwordless sudo for user cs1660-user
+RUN useradd -m -s /bin/bash cs1660-user && \
+  echo "cs1660-user ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/cs1660-init
 
 # Add user to the wireshark group
-RUN usermod -a -G wireshark cs1680-user
+RUN usermod -a -G wireshark cs1660-user
 
 # create binary reporting version of dockerfile
-RUN (echo '#\!/bin/sh'; echo 'if test "x$1" = x-n; then echo 1; else echo 1.arm64; fi') > /usr/bin/cs1680-docker-version; chmod ugo+rx,u+w,go-w /usr/bin/cs1680-docker-version
+RUN (echo '#\!/bin/sh'; echo 'if test "x$1" = x-n; then echo 1; else echo 1.arm64; fi') > /usr/bin/cs1660-docker-version; chmod ugo+rx,u+w,go-w /usr/bin/cs1660-docker-version
 
 # git build arguments
-ARG USER=cs1680\ User
+ARG USER=cs1660\ User
 ARG EMAIL=nobody@example.com
 
 # configure your environment
-USER cs1680-user
+USER cs1660-user
 RUN rm -f ~/.bash_logout
 
-WORKDIR /home/cs1680-user
+WORKDIR /home/cs1660
 CMD ["/bin/bash", "-l"]
