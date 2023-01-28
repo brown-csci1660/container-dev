@@ -43,9 +43,9 @@ elif test -z "$platform"; then
     platform=linux/amd64
 fi
 if test -z "$tag" -a "$platform" = linux/arm64; then
-    tag=cs1660:arm64
+    tag=cs1660-dev:arm64
 elif test -z "$tag"; then
-    tag=cs1660:latest
+    tag=cs1660-dev:latest
 fi
 
 vexec () {
