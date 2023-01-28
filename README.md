@@ -1,6 +1,6 @@
-# CS 1680: development environment
+# CS 1660: development environment
 
-This repo contains a minimal dev environment setup for CS 1680. In
+This repo contains a minimal dev environment setup for CS 1660. In
 particular, it provides the scripts to create the course Docker
 container.
 
@@ -9,11 +9,11 @@ container.
 ```
 # 1. build docker image locally
 cd docker
-./cs1680-build-docker
+./cs1660-build-docker
 
 # 2. start development environment
 cd ..
-./cs1680-run-docker
+./cs1660-run-docker
 ```
 
 For detailed setup instructions, refer to our Lab 0 setup guide!
