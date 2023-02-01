@@ -15,7 +15,7 @@ cd ..
 ./cs1660-run-docker
 ```
 
-For detailed setup instructions, refer to our Lab 0 setup guide!
+For detailed setup instructions, refer to our [setup guide](https://hackmd.io/@cs1660/HyXQ9y1nj)!
 
 ## Wireshark setup
 
