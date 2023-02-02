@@ -39,6 +39,6 @@ elif test -z "$tag"; then
     tag="latest"
 fi
 
-#docker pull "${REPO_URL}:${tag}"
+docker pull "${REPO_URL}:${tag}"
 docker tag "${REPO_URL}:${tag}" "${IMAGE_NAME}:${tag}"
 
