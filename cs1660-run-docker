@@ -2,95 +2,14 @@
 #set -x
 
 maindir=""
-destdir=cs1660
-container_name=cs1660-container
+container_name=cs1660-dev
+network_name=net-cs1660
 
 clean=false
 verbose=false
 arch="`uname -m`"
 tag=
 platform=
-while test "$#" -ne 0; do
-    if test "$1" = "-C" -o "$1" = "--clean"; then
-        clean=true
-        shift
-    elif test "$1" = "-V" -o "$1" = "--verbose"; then
-        verbose=true
-        shift
-    elif test "$1" = "-a" -o "$1" = "--arm" -o "$1" = "--arm64"; then
-        if test "$arch" = "arm64" -o "$arch" = "aarch64"; then
-            platform=linux/arm64
-            shift
-        else
-            echo "\`cs1660-run-docker --arm\` only works on ARM64 hosts" 1>&2
-            exit 1
-        fi
-    elif test "$1" = "-x" -o "$1" = "--x86-64" -o "$1" = "--x86_64" -o "$1" = "--amd64"; then
-        platform=linux/amd64
-    else
-        armtext=
-        if test "$arch" = "arm64" -o "$arch" = "aarch64"; then
-            armtext=" [-a|--arm] [-x|--x86-64]"
-        fi
-        echo "Usage: cs1660-run-docker [-C|--clean]$armtext [-V|--verbose]" 1>&2
-        exit 1
-    fi
-done
-
-if test -z "$platform" -a \( "$arch" = "arm64" -o "$arch" = "aarch64" \); then
-    platform=linux/arm64
-elif test -z "$platform"; then
-    platform=linux/amd64
-fi
-if test -z "$tag" -a "$platform" = linux/arm64; then
-    tag=cs1660-dev:arm64
-elif test -z "$tag"; then
-    tag=cs1660-dev:latest
-fi
-
-vexec () {
-    if $verbose; then
-        echo "$@"
-    fi
-    exec "$@"
-}
-
-has_container() {
-    [ $( docker ps -a | grep $container_name | wc -l ) -gt 0 ]
-}
-
-remove_containers() {
-    echo "Removing all existing cs1660 containers..."
-    docker ps -a -f name=cs1660 --format "{{.ID}}" | while read line ; do docker rm --force $line ; done
-}
-
-start_container() {
-    echo "Entering container..."
-    docker start $container_name
-    docker exec -it $container_name /bin/bash
-}
-
-start_new_container() {
-    # Linux
-    #-e DISPLAY=unix$DISPLAY \
-    #-v /tmp/.X11-unix:/tmp/.X11-unix \
-    # MacOS
-    # - Install Xquartz, Allow TCP connections in Xquartz
-    # - xhost +host.docker.internal
-    # - xhost +localhost
-    # - -e DISPLAY=host.docker.internal:0
-
-    vexec docker run -it \
-        --name $container_name \
-        --platform $platform \
-        --privileged \
-        --cap-add=SYS_PTRACE --cap-add=NET_ADMIN --security-opt seccomp=unconfined \
-	--add-host=host.docker.internal:host-gateway \
-        -v "$maindir/home":/home/cs1660-user \
-        -w "/home/cs1660-user" \
-	$x11envarg $x11arg $xpraarg $rtparg $netarg$sshenvarg $tag
-}
-
 
 if stat --format %i / >/dev/null 2>&1; then
     statformatarg="--format"
@@ -102,7 +21,7 @@ myfileid=`stat $statformatarg %d:%i "${BASH_SOURCE[0]}" 2>/dev/null`
 dir="`pwd`"
 subdir=""
 while test "$dir" != / -a "$dir" != ""; do
-    thisfileid=`stat $statformatarg %d:%i "$dir"/cs1660-run-docker 2>/dev/null`
+    thisfileid=`stat $statformatarg %d:%i "$dir"/${BASH_SOURCE[0]} 2>/dev/null`
     if test -n "$thisfileid" -a "$thisfileid" = "$myfileid"; then
         maindir="$dir"
         break
@@ -116,96 +35,240 @@ if test -z "$maindir" && expr "${BASH_SOURCE[0]}" : / >/dev/null 2>&1; then
     subdir=""
 fi
 
-ssharg=
-sshenvarg=
-if test -n "$SSH_AUTH_SOCK" -a "`uname`" = Darwin; then
-    ssharg=" -v /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock"
-    sshenvarg=" -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock"
-fi
-
-if test -n "$maindir"; then
-    existing_image="`docker ps -f status=running -f ancestor=$tag -f volume=/host_mnt"$maindir" --no-trunc --format "{{.CreatedAt}},{{.ID}}" | sort -r | head -n 1`"
-    if test -n "$existing_image"; then
-        created_at="`echo $existing_image | sed 's/,.*//'`"
-        image="`echo $existing_image | sed 's/^.*,//'`"
-        image12="`echo $image | head -c 12`"
-        echo "* Using running container $image12, created $created_at" 1>&2
-        echo "- To start a new container, exit then \`cs1660-run-docker -f\`" 1>&2
-        echo "- To kill this container, exit then \`docker kill $image12\`" 1>&2
-        vexec docker exec -it$sshenvarg $image /bin/bash
-    fi
-fi
-
-xhost_warned=false
-do_xhost()
-{
-    arg=$@
-
-    if $(which xhost); then
-	xhost $@
-    else
-	if ! $xhost_warned; then
-	    echo "Warning:  xhost was not detected on your system.  You may have issues running gaphical apps like Wireshark."
-	    xhost_warned=true
-	fi
-    fi
-}
-
-x11arg=
-x11envarg=
-if test "$(uname)" = Linux; then
-    if grep -qi Microsoft /proc/version; then # Windows
-	x11arg=""
-	x11envarg="-e DISPLAY=$(awk '/nameserver / {print $2; exit}' /etc/resolv.conf 2>/dev/null):0"
-    else # Native Linux
-	if test -n "$DISPLAY"; then
-	    x11arg="-v /tmp/.X11-unix:/tmp/.X11-unix"
-	    x11envarg="-e DISPLAY=unix$DISPLAY"
-	    do_xhost local:
-	else
-	    # Don't bother doing anything if $DISPLAY isn't set--this might be a headless system
-	    echo "$DISPLAY is not set, skipping X11 configuration"
-	fi
-    fi
-elif test "$(uname)" = Darwin; then # Mac OS
-    x11arg=""
-    x11envarg="-e DISPLAY=host.docker.internal:0"
-    do_xhost +host.docker.internal
-    do_xhost +localhost
-fi
-
-# Expose TCP port 14500 on localhost for XPRA
-xpraarg="-p 127.0.0.1:14500:14500"
-
-# Expose UDP port 14600 on localhost for RTP
-rtparg="-p 127.0.0.1:14600:14600/udp"
-
-netarg=
-if test `uname` = Darwin; then
-    if ! netstat -n -a -p tcp | grep '\.6169[  ].*LISTEN' >/dev/null; then
-        netarg="$netarg "'--expose=6169/tcp -p 6169:6169/tcp'
-    fi
-    if ! netstat -n -a -p tcp | grep '\.12949[ 	].*LISTEN' >/dev/null; then
-        netarg="$netarg "'--expose=12949/tcp -p 12949:12949/tcp'
-    fi
-elif test -x /bin/netstat; then
-    if ! netstat -n -a -p tcp | grep '\.6169[  ].*LISTEN' >/dev/null; then
-        netarg="$netarg "'--expose=6169/tcp -p 6169:6169/tcp'
-    fi
-    if ! netstat -n -l -t | grep ':12949[ 	]' >/dev/null; then
-        netarg="$netarg "'--expose=12949/tcp -p 12949:12949/tcp'
-    fi
-fi
-
 if test -z "$maindir"; then
     echo "Error: could not determine your directory."
     exit 1
 fi
 
-if $clean; then
-    remove_containers && start_new_container
-elif has_container; then
-    start_container
-else
-    start_new_container
+
+vexec () {
+    if $verbose; then
+        echo "$@"
+    fi
+    exec "$@"
+}
+
+has_container() {
+    [ $( docker ps -a | grep $container_name | wc -l ) -gt 0 ]
+}
+
+remove_containers() {
+    echo "Removing all existing ${container_name} containers..."
+    docker ps -a -f name=${container_name} --format "{{.ID}}" | while read line ; do docker rm --force $line ; done
+}
+
+stop_container() {
+    docker stop "${container_name}"
+}
+
+start_container() {
+    echo "Entering existing container"
+    echo "(To reset this container on startup, run with --clean)"
+    docker start -ai $container_name
+}
+
+run_in_container() {
+    docker exec -it $container_name $@
+}
+
+run_shell() {
+    run_in_container "/bin/bash"
+}
+
+has_network() {
+    local rv
+    rv=0
+    $(docker network inspect "${network_name}" 2>&1 > /dev/null) || rv=$?
+    if [[ $rv == 0 ]]; then
+	return 0
+    else
+	return 1
+    fi
+}
+
+create_network() {
+    if ! has_network; then
+	echo "Creating container-local network ${network_name}"
+	docker network create "${network_name}"
+    else
+	echo "Network ${network_name} already exists"
+    fi
+}
+
+get_network_info() {
+    docker network inspect "${network_name}"
+}
+
+remove_network() {
+    docker network rm "${network_name}"
+}
+
+start_new_container() {
+    netarg=
+    if test `uname` = Darwin; then
+	if ! netstat -n -a -p tcp | grep '\.6169[  ].*LISTEN' >/dev/null; then
+            netarg="$netarg "'--expose=6169/tcp -p 6169:6169/tcp'
+	fi
+    elif test -x /bin/netstat; then
+	if ! netstat -n -a -p tcp | grep '\.6169[  ].*LISTEN' >/dev/null; then
+            netarg="$netarg "'--expose=6169/tcp -p 6169:6169/tcp'
+	fi
+    fi
+
+    ssharg=
+    sshenvarg=
+    if test -n "$SSH_AUTH_SOCK" -a "`uname`" = Darwin; then
+	ssharg=" -v /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock"
+	sshenvarg=" -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock"
+    fi
+
+    create_network
+
+    vexec docker run -it \
+          --name $container_name \
+	  --platform $platform \
+	  --network "${network_name}" --network-alias "[${container_name}]" \
+	  --add-host=host.docker.internal:host-gateway \
+	  --privileged --security-opt seccomp=unconfined \
+	  --cap-add=SYS_PTRACE --cap-add=NET_ADMIN \
+	  -v "$maindir/home":/home/cs1660-user \
+          -w "/home/cs1660-user" \
+	  $netarg$sshenvarg $tag
+}
+
+
+
+if test -n "$maindir"; then
+    existing_image="`docker ps -f status=running -f ancestor=$tag --no-trunc --format "{{.CreatedAt}},{{.ID}}" | sort -r | head -n 1`"
+    if test -n "$existing_image"; then
+        created_at="`echo $existing_image | sed 's/,.*//'`"
+        image="`echo $existing_image | sed 's/^.*,//'`"
+        image12="`echo $image | head -c 12`"
+        echo "* Using running container $image12, created $created_at" 1>&2
+        echo "- To start a new container, exit then \`$0 -f\`" 1>&2
+        echo "- To kill this container, exit then \`docker kill $image12\`" 1>&2
+        vexec docker exec -it $image /bin/bash
+    fi
 fi
+
+do_start_or_run()
+{
+    if $clean; then
+	remove_containers && start_new_container
+    elif has_container; then
+	start_container
+    else
+	start_new_container
+    fi
+
+}
+
+__check_platform()
+{
+    if test -z "$platform" -a \( "$arch" = "arm64" -o "$arch" = "aarch64" \); then
+	platform=linux/arm64
+    elif test -z "$platform"; then
+	platform=linux/amd64
+    fi
+
+    if test -z "$tag" -a "$platform" = linux/arm64; then
+	tag="${container_name}:arm64"
+    elif test -z "$tag"; then
+	tag="${container_name}:latest"
+    fi
+
+}
+
+build_image()
+{
+    if test $platform = linux/arm64; then
+	exec docker build -t "$tag" -f Dockerfile.arm64 --platform linux/arm64 .
+    else
+	exec docker build -t "$tag" -f Dockerfile --platform linux/amd64 .
+    fi
+}
+
+remove_image()
+{
+    exec docker image rm "$tag"
+}
+
+main()
+{
+    # Top-level args
+    case $1 in
+	--verbose|-v)
+	    shift
+	    verbose=true
+	    ;;
+	--clean|-C)
+	    shift
+	    clean=true
+	    ;;
+	--debug)
+	    shift
+	    set -x
+	    ;;
+	-a|--arm|--arm64|--aarch64)
+	    shift
+	    if [[ ( "${arch}" == "arm64" ) || ( "${arch}" == "aarch64" ) ]]; then
+		platform=linux/arm64
+	    else
+		echo "$0 --arm only works on arm64 hosts (platform is ${arch})" 1>&2
+		exit 1
+	    fi
+	    ;;
+	-x|--x86-64)
+	    shift
+	    platform=linux/amd64
+	    ;;
+    esac
+
+    __check_platform
+
+    # Default subcommand
+    if [[ $# == 0 ]]; then
+	do_start_or_run
+	exit 0
+    fi
+
+    # Subcommands
+    case $1 in
+	start|run)
+	    shift
+	    do_start_or_run $@
+	    ;;
+	shell)
+	    shift
+	    run_shell $@
+	    ;;
+	stop)
+	    shift
+	    stop_container $@
+	    ;;
+	clean)
+	    shift
+	    remove_containers $@
+	    ;;
+	reset)
+	    shift
+	    remove_containers
+	    do_start_or_run $@
+	    ;;
+	setup|build-image)
+	    shift
+	    build_image $@
+	    ;;
+	remove-image|clean-image|reset-image)
+	    shift
+	    remove_containers
+	    remove_image $@
+	    ;;
+	*)
+	    echo "Invalid command $1"
+	    exit 1
+	    ;;
+    esac
+}
+
+main $@
