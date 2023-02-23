@@ -1,15 +1,15 @@
-CS 1660 Docker
+CS 1660 Container Environment
 =============
 
-The Docker container-based virtualization service lets you run a minimal CS 1660
-environment, including Linux, on a macOS or Windows computer, without the
-overhead of a full virtual machine like VMware Workstation, VMware Fusion, or
-VirtualBox.
+The Docker container-based virtualization service lets you run a
+minimal CS 1660 environment, including Linux, on a macOS or Windows
+computer, without the overhead of a full virtual machine like VMware
+Workstation, VMware Fusion, or VirtualBox.
 
 It should be possible to do *all* CS 1660 assignments in the CS 1660 Docker
 container.
 
-Advantages of Docker:
+Advantages of using a container environment with Docker:
 
 * Docker can start and stop containers incredibly quickly.
 * Docker-based containers are small and occupy little space on your machine.
@@ -18,14 +18,14 @@ Advantages of Docker:
 
 Disadvantages of Docker:
 
-* Docker does not offer a graphical environment. You will need to run all CS
-  1660 programs exclusively in the terminal.
+* Docker does not easily offer a graphical environment. You will need
+  to run all CS 1660 programs exclusively in the terminal.
 * Docker technology is less user-friendly than virtual machines. You’ll have
   to type weird commands.
 * You won’t get the fun, different feeling of a graphical Linux desktop,
   like the one you see in lectures..
 
-## Creating the CS 1660 Docker container
+## Loading the CS 1660 Docker container
 
 1. Download and install [Docker][].
 
@@ -45,8 +45,15 @@ Disadvantages of Docker:
 
 We may need to change the Docker image during the semester. If we do, you’ll
 update your repository to get the latest Dockerfile, then re-run the
-`./build-container` command from step 2. However, later runs should be
+`./setup-container` command from step 2. However, later runs should be
 faster since they’ll take advantage of your previous work.
+
+### Building the container manually
+
+The default `./setup-container` script downloads a pre-built version of
+the container that we have prepared for you.  If you need to change
+the container image for some reason, you can also build the container
+manually.  To do this, use the script `./build-container` instead.  
 
 > `./build-container` is a wrapper around `docker build`. On x86-64 hosts, it runs
 > `docker build -t cs1660:latest -f Dockerfile --platform linux/amd64`.
@@ -124,6 +131,29 @@ $
 ```
 
 [Docker]: https://docker.com/
+
+## Pushing a container image (course staff only)
+
+Our course hosts our container images using the [Github container
+registry](https://ghcr.io).  
+
+To create and push a container image, consult [this
+guide](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+for instructions on how to create a Personal Access Token and use it
+to authenticate with Docker.  
+
+Once your credentials are set up, you should be able to push the
+compiled image using something like this (for arm64 builds, replace `latest`
+with `arm64`):
+```
+# Tag the image built with ./build-container for export
+$  docker tag cs1660-dev ghcr.io/brown-csci1660/cs1660-dev:latest
+
+# Push the image to the repository
+$  docker push ghcr.io/brown-csci1660/cs1660-dev:latest
+
+```
+
 
 ## Acknowledgments
 

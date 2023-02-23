@@ -1,5 +1,7 @@
 FROM ubuntu:jammy
 
+LABEL org.opencontainers.image.source=https://github.com/brown-csci1660/container-dev
+
 # set environment variables for tzdata
 ARG TZ=America/New_York
 ENV TZ=${TZ}

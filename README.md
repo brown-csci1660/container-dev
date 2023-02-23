@@ -6,7 +6,11 @@ it provides the scripts to create the course Docker container.
 ## Getting started
 
 ```bash
-# 1. build docker image locally
+# 1. load pre-built docker image
+cd docker
+./setup-container
+
+# Alternate 1. build docker image locally
 cd docker
 ./build-container
 
