@@ -53,8 +53,10 @@ has_container() {
 }
 
 remove_containers() {
+    local _name
+    name="${1:-${container_name}}"
     echo "Removing all existing ${container_name} containers..."
-    docker ps -a -f name=${container_name} --format "{{.ID}}" | while read line ; do docker rm --force $line ; done
+    docker ps -a -f name=${_name} --format "{{.ID}}" | while read line ; do docker rm --force $line ; done
 }
 
 stop_container() {
@@ -261,7 +263,8 @@ main()
 	    ;;
 	remove-image|clean-image|reset-image)
 	    shift
-	    remove_containers
+            remove_containers "cs1660-container"  # Remove old name in case it's still there
+	    remove_containers "${container_name}"
 	    remove_image $@
 	    ;;
 	*)
