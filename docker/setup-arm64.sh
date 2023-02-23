@@ -60,7 +60,7 @@ apt-get -y install\
  vim 
 
 # Install golang
-bash -c "mkdir /usr/local/go && wget -O - https://go.dev/dl/go1.19.5.linux-amd64.tar.gz | sudo tar -xvz -C /usr/local"
+bash -c "mkdir /usr/local/go && wget -O - https://go.dev/dl/go1.19.5.linux-arm64.tar.gz | sudo tar -xvz -C /usr/local"
 
 # set up libraries
 apt-get -y install\
