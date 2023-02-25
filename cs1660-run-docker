@@ -1,13 +1,23 @@
 #! /bin/bash
 #set -x
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 maindir=""
 container_name=cs1660-dev
 network_name=net-cs1660
 
+image_name=cs1660-dev
+image_url="ghcr.io/brown-csci1660/${image_name}"
+docker_dir="${SCRIPT_DIR}/docker"
+
+version_file="${SCRIPT_DIR}/docker/.image-version"
+
 clean=false
 verbose=false
 arch="`uname -m`"
+
+# Set automatically by platform detection
 tag=
 platform=
 
@@ -45,7 +55,7 @@ vexec () {
     if $verbose; then
         echo "$@"
     fi
-    exec "$@"
+    "$@"
 }
 
 has_container() {
@@ -60,7 +70,10 @@ remove_containers() {
 }
 
 stop_container() {
-    docker stop "${container_name}"
+    local _name
+    _name="${1:-${container_name}}"
+
+    docker stop "${_name}"
 }
 
 start_container() {
@@ -135,13 +148,13 @@ start_new_container() {
 	  --cap-add=SYS_PTRACE --cap-add=NET_ADMIN \
 	  -v "$maindir/home":/home/cs1660-user \
           -w "/home/cs1660-user" \
-	  $netarg$sshenvarg $tag
+	  $netarg$sshenvarg "${image_name}:${tag}"
 }
 
 
 
 if test -n "$maindir"; then
-    existing_image="`docker ps -f status=running -f ancestor=$tag --no-trunc --format "{{.CreatedAt}},{{.ID}}" | sort -r | head -n 1`"
+    existing_image="`docker ps -f status=running -f ancestor=${image_name}:${tag} --no-trunc --format "{{.CreatedAt}},{{.ID}}" | sort -r | head -n 1`"
     if test -n "$existing_image"; then
         created_at="`echo $existing_image | sed 's/,.*//'`"
         image="`echo $existing_image | sed 's/^.*,//'`"
@@ -174,25 +187,104 @@ __check_platform()
     fi
 
     if test -z "$tag" -a "$platform" = linux/arm64; then
-	tag="${container_name}:arm64"
+	tag="arm64"
     elif test -z "$tag"; then
-	tag="${container_name}:latest"
+	tag="latest"
     fi
 
+}
+
+load_image()
+{
+    local target
+    if [[ "${tag}" == "latest" ]]; then
+       target="${image_url}"
+    else
+       target="${image_url}:${tag}"
+    fi
+
+    echo "Trying to load image at ${target}"
+
+    docker pull "${target}"
+    docker tag "${target}" "${image_name}:${tag}"
+}
+
+get_version_string()
+{
+    commit=""
+
+    if ! command -v git > /dev/null ; then
+	commit="NOGIT"
+    else
+	commit=$(git rev-parse --short HEAD)
+    fi
+    ts="$(date --iso-8601='seconds')"
+
+    echo "${image_name}-${commit}-${ts}"
 }
 
 build_image()
 {
+    # Add a version string so we can track the container version
+    echo "${container_name} $(get_version_string)" > "${version_file}"
+
     if test $platform = linux/arm64; then
-	exec docker build -t "$tag" -f Dockerfile.arm64 --platform linux/arm64 .
+	docker build -t "${image_name}:${tag}" -f Dockerfile.arm64 --platform linux/arm64 .
     else
-	exec docker build -t "$tag" -f Dockerfile --platform linux/amd64 .
+	docker build -t "${image_name}:${tag}" -f Dockerfile --platform linux/amd64 .
     fi
+}
+
+enter_build_dir()
+{
+    pushd "${docker_dir}"
+}
+
+leave_build_dir()
+{
+    popd
+}
+
+
+push_image()
+{
+    local target
+    target="${image_url}:${tag}"
+    docker tag "${image_name}" "${target}"
+
+    echo "Pushing ${target}"
+    docker push "${target}"
 }
 
 remove_image()
 {
-    exec docker image rm "$tag"
+    docker image rm --force "${image_name}:${tag}"
+    docker image rm --force "${image_url}:${tag}"
+}
+
+do_help()
+{
+    cat <<EOF
+Usage $0:  [--verbose] [--clean] [--debug] [--arm] [command] [command opts...]
+Top-level options:
+ --verbose  Execute docker with verbose output
+ --clean    Discard current container state when using 'start'
+ --debug    Use to show execution of this script for debugging
+ --arm      Force building for ARM64 platform (ARM64/M1 macs only)
+
+Commands:
+ setup        Download/update the container image (normal first time setup)
+ setup-build  Build the container image locally (alt. first time setup)
+ start        Start the container (requires 'setup' first)
+ stop         Stop the container
+ clean        Remove container state (revert state to image built with 'setup')
+ reset        Remove container state and restart (same as 'clean+start')
+ clean-image  Remove all container state and the image (must 'setup' again)
+ reset-all    Same as clean-image+setup+start
+ clean-old    Discard containers generated with old versions of this script
+
+If no command is specified, the default is 'start'.
+EOF
 }
 
 main()
@@ -224,6 +316,10 @@ main()
 	    shift
 	    platform=linux/amd64
 	    ;;
+	--help)
+	    shift
+	    do_help
+	    exit 0
     esac
 
     __check_platform
@@ -236,6 +332,10 @@ main()
 
     # Subcommands
     case $1 in
+	help)
+	    do_help
+	    exit 0
+	    ;;
 	start|run)
 	    shift
 	    do_start_or_run $@
@@ -257,18 +357,31 @@ main()
 	    remove_containers
 	    do_start_or_run $@
 	    ;;
-	setup|build-image)
+	setup|download-image)
 	    shift
-	    build_image $@
+	    enter_build_dir
+	    load_image $@ || true
+	    leave_build_dir
+	    ;;
+	build|build-image|setup-build)
+	    shift
+	    enter_build_dir
+	    build_image $@ || true
+	    leave_build_dir
+	    ;;
+	push-release)
+	    shift
+	    push_image $@
 	    ;;
 	remove-image|clean-image|reset-image)
 	    shift
-            remove_containers "cs1660-container"  # Remove old name in case it's still there
+            remove_containers "cs1660-container" || true # Remove old name in case it's still there
 	    remove_containers "${container_name}"
 	    remove_image $@
 	    ;;
 	*)
 	    echo "Invalid command $1"
+	    do_help
 	    exit 1
 	    ;;
     esac

@@ -7,6 +7,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update &&\
   yes | unminimize
 
+
 # install GCC-related packages
 apt-get update && apt-get -y install\
  build-essential\
@@ -23,7 +24,12 @@ apt-get update && apt-get -y install\
  liblapack-doc\
  libstdc++-11-doc\
  make\
- make-doc
+ make-doc\
+ locales
+
+# set up default locale
+locale-gen en_US.UTF-8
+export LANG=en_US.UTF-8
 
 # install programs used for system exploration
 apt-get -y install\

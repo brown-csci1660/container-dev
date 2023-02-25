@@ -14,6 +14,9 @@ apt-get update &&
   apt-get update &&\
   apt-get upgrade
 
+# set up default locale
+locale-gen en_US.UTF-8
+export LANG=en_US.UTF-8
 
 # install GCC-related packages
 apt-get update && apt-get -y install\

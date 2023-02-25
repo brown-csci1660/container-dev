@@ -11,6 +11,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV LANG en_US.UTF-8
 
 COPY setup-amd64.sh /usr/local/bin/container-setup
+COPY .image-version /etc/image-version
+
 RUN /usr/local/bin/container-setup
 
 # git build arguments
