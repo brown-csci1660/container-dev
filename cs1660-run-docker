@@ -218,7 +218,7 @@ get_version_string()
     else
 	commit=$(git rev-parse --short HEAD)
     fi
-    ts="$(date --iso-8601='seconds')"
+    ts="$(date -I 'seconds')"
 
     echo "${image_name}-${commit}-${ts}"
 }
@@ -227,7 +227,7 @@ build_image()
 {
     # Add a version string so we can track the container version
     echo "${container_name} $(get_version_string)" > "${version_file}"
-
+	echo "image tag -> ${image_name}:${tag}"
     if test $platform = linux/arm64; then
 	docker build -t "${image_name}:${tag}" -f Dockerfile.arm64 --platform linux/arm64 .
     else
@@ -250,7 +250,7 @@ push_image()
 {
     local target
     target="${image_url}:${tag}"
-    docker tag "${image_name}" "${target}"
+    docker tag "${image_name}:${tag}" "${target}"
 
     echo "Pushing ${target}"
     docker push "${target}"
