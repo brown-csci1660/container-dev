@@ -1,6 +1,8 @@
 *~
 \#*#
 
+docker/.image-version
+
 .vagrant/
 .vscode
 .gitconfig
