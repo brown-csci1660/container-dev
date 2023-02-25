@@ -132,7 +132,7 @@ $
 
 [Docker]: https://docker.com/
 
-## Pushing a container image (course staff only)
+## Pushing the container image (course staff only)
 
 Our course hosts our container images using the [Github container
 registry](https://ghcr.io).  
@@ -143,9 +143,12 @@ for instructions on how to create a Personal Access Token and use it
 to authenticate with Docker.  
 
 Once your credentials are set up, you should be able to push the
-compiled image using something like this (for arm64 builds, replace `latest`
-with `arm64`):
+compiled image like this:
 ```
+# Build the latest image
+./cs1660-run-docker setup
+
+# Push the image to the repository
 ./cs1660-run-docker push-release
 ```
 
