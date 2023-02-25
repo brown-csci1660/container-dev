@@ -146,12 +146,7 @@ Once your credentials are set up, you should be able to push the
 compiled image using something like this (for arm64 builds, replace `latest`
 with `arm64`):
 ```
-# Tag the image built with ./build-container for export
-$  docker tag cs1660-dev ghcr.io/brown-csci1660/cs1660-dev:latest
-
-# Push the image to the repository
-$  docker push ghcr.io/brown-csci1660/cs1660-dev:latest
-
+./cs1660-run-docker push-release
 ```
 
 
