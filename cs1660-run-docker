@@ -274,7 +274,7 @@ Top-level options:
 
 Commands:
  setup        Download/update the container image (normal first time setup)
- setup-build  Build the container image locally (alt. first time setup)
+                - If container image exists, runs 'clean' and updates to latest
  start        Start the container (requires 'setup' first)
  stop         Stop the container
  clean        Remove container state (revert state to image built with 'setup')
@@ -282,6 +282,7 @@ Commands:
  clean-image  Remove all container state and the image (must 'setup' again)
  reset-all    Same as clean-image+setup+start
  clean-old    Discard containers generated with old versions of this script
+ manual-build Build the container image locally
 
 If no command is specified, the default is 'start'.
 EOF
@@ -359,12 +360,16 @@ main()
 	    ;;
 	setup|download-image)
 	    shift
+	    remove_containers
+
 	    enter_build_dir
 	    load_image $@ || true
 	    leave_build_dir
 	    ;;
-	build|build-image|setup-build)
+	build|build-image|manual-build)
 	    shift
+	    remove_containers
+
 	    enter_build_dir
 	    build_image $@ || true
 	    leave_build_dir
