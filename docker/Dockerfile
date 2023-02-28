@@ -11,6 +11,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV LANG en_US.UTF-8
 
 COPY setup-amd64.sh /usr/local/bin/container-setup
+COPY entrypoint.sh /usr/local/bin/container-entrypoint
 COPY .image-version /etc/image-version
 
 RUN /usr/local/bin/container-setup
@@ -22,6 +23,8 @@ ARG EMAIL=nobody@example.com
 # configure your environment
 USER cs1660-user
 RUN rm -f ~/.bash_logout
+
+ENTRYPOINT ["container-entrypoint"]
 
 WORKDIR /home/cs1660
 CMD ["/bin/bash", "-l"]
