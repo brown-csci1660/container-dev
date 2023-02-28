@@ -12,9 +12,10 @@ apt-get update &&
   apt-get -y install binfmt-support &&\
   dpkg --add-architecture amd64 &&\
   apt-get update &&\
-  apt-get upgrade
+  apt-get -y upgrade
 
 # set up default locale
+apt-get update && apt-get -y install locales
 locale-gen en_US.UTF-8
 export LANG=en_US.UTF-8
 
@@ -25,14 +26,13 @@ apt-get update && apt-get -y install\
  cpp-doc\
  gcc-doc\
  g++\
- g++-multilib\
  gdb\
  gdb-doc\
  glibc-doc\
  libblas-dev\
  liblapack-dev\
  liblapack-doc\
- libstdc++-11-doc\
+ libstdc++-10-doc\
  make\
  make-doc
 
@@ -68,7 +68,6 @@ bash -c "mkdir /usr/local/go && wget -O - https://go.dev/dl/go1.19.5.linux-arm64
 # set up libraries
 apt-get -y install\
  libreadline-dev\
- locales\
  wamerican\
  libssl-dev
 
@@ -97,7 +96,6 @@ apt-get -y install\
  libblas-dev:amd64\
  liblapack-dev:amd64
 
-# link x86-64 versions of common tools into /usr/x86_64-linux-gnu/bin
 for i in addr2line c++filt cpp-9 g++-9 gcc-9 gcov-9 gcov-dump-9 gcov-tool-9 size strings; do \
         ln -s /usr/bin/x86_64-linux-gnu-$i /usr/x86_64-linux-gnu/bin/$i; done && \
   ln -s /usr/bin/x86_64-linux-gnu-cpp-9 /usr/x86_64-linux-gnu/bin/cpp && \
