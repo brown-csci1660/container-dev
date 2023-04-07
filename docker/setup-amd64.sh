@@ -39,6 +39,12 @@ apt-get -y install\
  tcpdump\
  htop
 
+apt-get install -y python3 \
+	python3-pip \
+	python3-dev \
+	python3-setuptools \
+	python3-venv
+
 # install interactive programs (emacs, vim, nano, man, sudo, etc.)
 apt-get -y install\
  bc\
