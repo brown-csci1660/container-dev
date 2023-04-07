@@ -80,7 +80,8 @@ stop_container() {
 start_container() {
     echo "Entering existing container"
     echo "(To reset this container on startup, run with --clean)"
-    docker start -ai $container_name
+    docker start ${container_name}
+    run_shell
 }
 
 run_in_container() {
