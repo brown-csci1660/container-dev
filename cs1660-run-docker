@@ -6,13 +6,16 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 maindir=""
 container_name=cs1660-dev
 network_name=net-cs1660
+github_org=brown-csci1660
+user_home="/home/cs1660-user"  # User's home dir inside container
 
 
 image_name=cs1660-dev
-image_url="ghcr.io/brown-csci1660/${image_name}"
+image_url="ghcr.io/${github_org}/${image_name}"
 docker_dir="${SCRIPT_DIR}/docker"
 
 version_file="${SCRIPT_DIR}/docker/.image-version"
+use_graphics=true  # Set to true to enable X11 support
 
 clean=false
 verbose=false
@@ -80,6 +83,11 @@ stop_container() {
 start_container() {
     echo "Entering existing container"
     echo "(To reset this container on startup, run with --clean)"
+
+    if $use_graphics; then
+	setup_xhost
+    fi
+
     docker start ${container_name}
     run_shell
 }
@@ -120,14 +128,94 @@ remove_network() {
     docker network rm "${network_name}"
 }
 
+xhost_warned=false
+do_xhost()
+{
+    arg=$@
+
+    if $(which xhost); then
+	xhost $@
+    else
+	if ! $xhost_warned; then
+	    echo "Warning:  xhost was not detected on your system.  You may have issues running gaphical apps like Wireshark."
+	    xhost_warned=true
+	fi
+    fi
+}
+
+setup_xhost() {
+    # OS-specific handling for X11 forwarding
+    if test "$(uname)" = Linux; then
+	if grep -qi Microsoft /proc/version; then # Windows
+	    true # Nothing to do, configured in GUI outside WSL
+	else # Native Linux
+	    if test -n "$DISPLAY"; then
+		do_xhost +local:
+	    else
+		# Don't bother doing anything if $DISPLAY isn't set--this might be a headless system
+		echo "$DISPLAY is not set, skipping X11 configuration"
+	    fi
+	fi
+    elif test "$(uname)" = Darwin; then # Mac OS
+	do_xhost +localhost
+	do_xhost +host.docker.internal
+    fi
+}
+
+add_port_if_open() {
+    local port
+    port="$1"
+    if test `uname` = Darwin; then
+	if ! netstat -n -a -p tcp | grep "\.${port}[  ].*LISTEN" >/dev/null; then
+            netarg="$netarg --expose=${port}/tcp -p ${port}:${port}/tcp"
+	fi
+    elif test -x /bin/netstat; then
+	if ! netstat -n -l -t | grep ":${port}[ 	]" >/dev/null; then
+            netarg="$netarg --expose=${port}/tcp -p ${port}:${port}/tcp"
+	fi
+    fi
+}
+
+
 start_new_container() {
-    netarg="--expose=6169/tcp -p 6169:6169/tcp"
+    netarg=
+    add_port_if_open 7169
 
     ssharg=
     sshenvarg=
     if test -n "$SSH_AUTH_SOCK" -a "`uname`" = Darwin; then
 	ssharg=" -v /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock"
 	sshenvarg=" -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock"
+    fi
+
+    x11arg=
+    x11envarg=
+    if $use_graphics; then
+	# Add port forward for XPRA (backup display method)
+	netarg="${netarg} -p 127.0.0.1:14500:14500"
+	netarg="${netarg} -p 127.0.0.1:14600:14600"
+
+	# OS-specific handling for X11 forwarding
+	if test "$(uname)" = Linux; then
+	    if grep -qi Microsoft /proc/version; then # Windows
+		x11arg=""
+		x11envarg="-e DISPLAY=host.docker.internal:0"
+	    else # Native Linux
+		if test -n "$DISPLAY"; then
+		    x11arg="-v /tmp/.X11-unix:/tmp/.X11-unix"
+		    x11envarg="-e DISPLAY=unix$DISPLAY"
+		else
+		    # Don't bother doing anything if $DISPLAY isn't set--this might be a headless system
+		    echo "$DISPLAY is not set, skipping X11 configuration"
+		fi
+	    fi
+	elif test "$(uname)" = Darwin; then # Mac OS
+	    x11arg=""
+	    x11envarg="-e DISPLAY=host.docker.internal:0"
+	fi
+
+	# Add any necessary xhost configs
+	setup_xhost
     fi
 
     create_network
@@ -139,9 +227,10 @@ start_new_container() {
 	  --add-host=host.docker.internal:host-gateway \
 	  --privileged --security-opt seccomp=unconfined \
 	  --cap-add=SYS_PTRACE --cap-add=NET_ADMIN \
-	  -v "$maindir/home":/home/cs1660-user \
-          -w "/home/cs1660-user" \
-	  $netarg$sshenvarg "${image_name}:${tag}"
+	  -v "$maindir/home":"${user_home}" \
+          -w "${user_home}" \
+	  $x11arg $x11envarg \
+	  $netarg $sshenvarg "${image_name}:${tag}"
 }
 
 
@@ -275,7 +364,8 @@ Commands:
  clean-image  Remove all container state and the image (must 'setup' again)
  reset-all    Same as clean-image+setup+start
  clean-old    Discard containers generated with old versions of this script
- manual-build Build the container image locally
+ build-image  Build the container image locally (development first time setup)
+ push-image   Push image to repository (development only)
 
 If no command is specified, the default is 'start'.
 EOF
@@ -283,38 +373,46 @@ EOF
 
 main()
 {
-    # Top-level args
-    case $1 in
-	--verbose|-v)
-	    shift
-	    verbose=true
-	    ;;
-	--clean|-C)
-	    shift
-	    clean=true
-	    ;;
-	--debug)
-	    shift
-	    set -x
-	    ;;
-	-a|--arm|--arm64|--aarch64)
-	    shift
-	    if [[ ( "${arch}" == "arm64" ) || ( "${arch}" == "aarch64" ) ]]; then
-		platform=linux/arm64
-	    else
-		echo "$0 --arm only works on arm64 hosts (platform is ${arch})" 1>&2
-		exit 1
-	    fi
-	    ;;
-	-x|--x86-64)
-	    shift
-	    platform=linux/amd64
-	    ;;
-	--help)
-	    shift
-	    do_help
-	    exit 0
-    esac
+    POSITIONAL=()
+    while [[ $# -gt 0 ]]; do
+	key=$1
+	case $key in
+	    --verbose|-v)
+		shift
+		verbose=true
+		;;
+	    --clean|-C)
+		shift
+		clean=true
+		;;
+	    --debug)
+		shift
+		set -x
+		;;
+	    -a|--arm|--arm64|--aarch64)
+		shift
+		if [[ ( "${arch}" == "arm64" ) || ( "${arch}" == "aarch64" ) ]]; then
+		    platform=linux/arm64
+		else
+		    echo "$0 --arm only works on arm64 hosts (platform is ${arch})" 1>&2
+		    exit 1
+		fi
+		;;
+	    -x|--x86-64)
+		shift
+		platform=linux/amd64
+		;;
+	    --help)
+		shift
+		do_help
+		exit 0
+		;;
+	    *)
+		POSITIONAL+=("$1")
+		shift
+	esac
+    done
+    set -- "${POSITIONAL[@]}"
 
     __check_platform
 
@@ -367,13 +465,12 @@ main()
 	    build_image $@ || true
 	    leave_build_dir
 	    ;;
-	push-release)
+	push-image|push-release)
 	    shift
 	    push_image $@
 	    ;;
 	remove-image|clean-image|reset-image)
 	    shift
-            remove_containers "cs1660-container" || true # Remove old name in case it's still there
 	    remove_containers "${container_name}"
 	    remove_image $@
 	    ;;
