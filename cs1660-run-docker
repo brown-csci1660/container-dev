@@ -234,20 +234,6 @@ start_new_container() {
 }
 
 
-
-if test -n "$maindir"; then
-    existing_image="`docker ps -f status=running -f ancestor=${image_name}:${tag} --no-trunc --format "{{.CreatedAt}},{{.ID}}" | sort -r | head -n 1`"
-    if test -n "$existing_image"; then
-        created_at="`echo $existing_image | sed 's/,.*//'`"
-        image="`echo $existing_image | sed 's/^.*,//'`"
-        image12="`echo $image | head -c 12`"
-        echo "* Using running container $image12, created $created_at" 1>&2
-        echo "- To start a new container, exit then \`$0 -f\`" 1>&2
-        echo "- To kill this container, exit then \`docker kill $image12\`" 1>&2
-        vexec docker exec -it $image /bin/bash
-    fi
-fi
-
 do_start_or_run()
 {
     if $clean; then
@@ -363,7 +349,6 @@ Commands:
  reset        Remove container state and restart (same as 'clean+start')
  clean-image  Remove all container state and the image (must 'setup' again)
  reset-all    Same as clean-image+setup+start
- clean-old    Discard containers generated with old versions of this script
  build-image  Build the container image locally (development first time setup)
  push-image   Push image to repository (development only)
 
