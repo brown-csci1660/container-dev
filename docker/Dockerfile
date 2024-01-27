@@ -23,7 +23,6 @@ ARG EMAIL=nobody@example.com
 
 # configure your environment
 USER cs1660-user
-#RUN rm -f ~/.bash_logout
 
 ENTRYPOINT ["container-entrypoint"]
 

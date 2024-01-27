@@ -3,6 +3,8 @@
 set -eu
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+target_user="${1:-cs1660-user}"
+
 export DEBIAN_FRONTEND=noninteractive
 export TZ=America/New_York
 
@@ -32,7 +34,7 @@ apt-get update && apt-get -y install\
  make-doc
 
 # Do main setup
-$SCRIPT_DIR/container-setup-common
+$SCRIPT_DIR/container-setup-common $target_user
 
 # Install golang
 bash -c "mkdir /usr/local/go && wget -O - https://go.dev/dl/go1.21.6.linux-amd64.tar.gz | tar -xvz -C /usr/local"
