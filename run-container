@@ -275,7 +275,6 @@ start_new_container() {
 	  --cap-add=SYS_PTRACE --cap-add=NET_ADMIN \
 	  -v "$maindir/home":"${user_home}" \
           -w "${user_home}" \
-	  -p "0.0.0.0:9095:9095" \
 	  $x11arg $x11envarg \
 	  $netarg $sshenvarg "${image_name}:${tag}"
 }
