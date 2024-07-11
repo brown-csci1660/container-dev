@@ -51,7 +51,9 @@ apt-get -y install\
  screen\
  tmux\
  emacs-nox\
- vim
+ vim \
+ jq \
+ file
 
 # install programs used for networking
 apt-get -y install\
@@ -59,7 +61,7 @@ apt-get -y install\
  inetutils-ping\
  iproute2\
  net-tools\
- netcat\
+ netcat-openbsd\
  nmap\
  telnet\
  time\
@@ -72,6 +74,8 @@ rm -r /var/lib/apt/lists/*
 
 # Set up the container user
 if [[ $target_user == "cs1660-user" ]]; then
+    userdel ubuntu || true
+    groupdel ubuntu || true
     useradd -m -s /bin/bash $target_user
 else
     # If using the host's user, don't create one--podman will do this
