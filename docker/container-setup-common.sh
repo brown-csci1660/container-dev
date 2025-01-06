@@ -51,7 +51,9 @@ apt-get -y install\
  screen\
  tmux\
  emacs-nox\
- vim
+ vim \
+ jq \
+ hexedit
 
 # install programs used for networking
 apt-get -y install\
