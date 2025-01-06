@@ -37,7 +37,7 @@ apt-get update && apt-get -y install\
 $SCRIPT_DIR/container-setup-common $target_user
 
 # Install golang
-bash -c "mkdir /usr/local/go && wget -O - https://go.dev/dl/go1.22.4.linux-amd64.tar.gz | tar -xvz -C /usr/local"
+bash -c "mkdir /usr/local/go && wget -O - https://go.dev/dl/go1.21.6.linux-amd64.tar.gz | tar -xvz -C /usr/local"
 
 # create binary reporting version of dockerfile
 (echo '#\!/bin/sh'; echo 'echo 1') > /usr/bin/cs1660-docker-version

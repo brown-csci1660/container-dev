@@ -61,7 +61,7 @@ for i in addr2line c++filt cpp-11 g++-11 gcc-11 gcov-11 gcov-dump-11 gcov-tool-1
 $SCRIPT_DIR/container-setup-common
 
 # Install golang
-bash -c "mkdir /usr/local/go && wget -O - https://go.dev/dl/go1.22.4.linux-arm64.tar.gz | tar -xvz -C /usr/local"
+bash -c "mkdir /usr/local/go && wget -O - https://go.dev/dl/go1.21.6.linux-arm64.tar.gz | tar -xvz -C /usr/local"
 
 # create binary reporting version of dockerfile
 (echo '#\!/bin/sh'; echo 'echo 1') > /usr/bin/cs1660-docker-version
