@@ -369,7 +369,7 @@ build_image()
     fi
 }
 
-do_cibuild()
+build_push_image_allarch()
 {
     local build_file_prefix
     local build_user
@@ -467,6 +467,10 @@ Commands:
  clean-old    Discard containers generated with old versions of this script
  build-image  Build the container image locally (development first time setup)
  push-image   Push image to repository (development only)
+
+Experimental commands:
+ build-push-allarch  Build x86-64 and ARM64 images and push to repository
+                     (development only)
 
 If no command is specified, the default is 'start'.
 EOF
@@ -567,11 +571,11 @@ main()
 	    build_image $@ || true
 	    leave_build_dir
 	    ;;
-	ci-build)
+	build-push-allarch)
 	    shift
 	    remove_containers
 	    enter_build_dir
-	    do_cibuild $@ || true
+	    build_push_image_allarch $@ || true
 	    leave_build_dir
 	    ;;
 	push-image|push-release)
